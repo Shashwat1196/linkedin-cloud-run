@@ -1,5 +1,6 @@
 import time
 import json
+import requests
 from flask import Flask, request
 
 
@@ -23,11 +24,18 @@ class Linkedin:
 
 
     def __init__(self, member):
-        self.member = member 
-        self.access_token, self.refresh_token = self.get_social_account()
+        self.access_token, self.refresh_token, self.post_ids = self.get_linkedin_user(member)
         self.headers = {'Authorization': 'Bearer ' + self.access_token}
         self.is_access_token_refreshed = False
         self.url = 'https://api.linkedin.com/v2/'
+
+
+    def get_linkedin_user(self, member):
+        response = requests.get('http://localhost:8000/api/linkedin_data?member_id={member}'.format(member=member.id))
+        access_token = self.decrypt_token(response["access_token"])
+        refresh_token = self.decrypt_token(response["refresh_token"])
+        linkedin_posts = response["linkedin_posts"]
+        return access_token, refresh_token, linkedin_posts
 
 
     def decrypt_token(self, token):
@@ -160,8 +168,9 @@ class Linkedin:
         data = json.loads(json_text)
         return data, None
 
-
-    def get_batch_linkedin_articles(self, post_ids):
+    @app.route('/posts')
+    def get_batch_linkedin_articles(self):
+        post_ids = self.post_ids
         if not post_ids:
             return "No Post IDs are present"
         chunk_size = 50
